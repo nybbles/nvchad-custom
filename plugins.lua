@@ -1,10 +1,5 @@
 local plugins = {
   {
-    "neovim/nvim-lspconfig",
-    init = function()
-    end,
-  },
-  {
     "nvim-tree/nvim-tree.lua",
     opts = function()
       local defaults = require "plugins.configs.nvimtree"
@@ -33,18 +28,35 @@ local plugins = {
     end,
   },
   {
+    "nvim-treesitter/nvim-treesitter",
+    init = function()
+      require("core.utils").load_mappings "telescope"
+    end,
+    cmd = { "TSInstall", "TSBufEnable", "TSBufDisable", "TSModuleInfo" },
+    opts = function()
+      local defaults = require "plugins.configs.treesitter"
+      local overrides = {
+        ensure_installed = {
+          "lua", "python", "java", "rust", "yaml",
+        }
+      }
+      return vim.tbl_deep_extend("force", defaults, overrides)
+    end,
+  },
+  {
     "williamboman/mason.nvim",
-    opts = function ()
-      local defaults =  require "plugins.configs.mason"
-      local overrides =  {
+    opts = function()
+      local defaults = require "plugins.configs.mason"
+      local overrides = {
         ensure_installed = {
           "lua-language-server",
           "pyright",
+          "pylsp",
         },
       }
       return vim.tbl_deep_extend("force", defaults, overrides)
-    end ,
-    config = function (_, opts)
+    end,
+    config = function(_, opts)
       dofile(vim.g.base46_cache .. "mason")
       require("mason").setup(opts)
 
@@ -64,31 +76,63 @@ local plugins = {
     "ray-x/navigator.lua",
     ft = { "java", "python", "lua", "shell", "yaml" },
     dependencies = {
-      { 'ray-x/guihua.lua', build = "cd lua/fzy && make" },
-      { 'neovim/nvim-lspconfig' },
+      { 'ray-x/guihua.lua',               build = "cd lua/fzy && make" },
       { 'nvim-treesitter/nvim-treesitter' },
+      { 'microsoft/python-type-stubs', },
     },
-    opts = function ()
-      local on_attach = require("navigator.lspclient.attach").on_attach
+    opts = function()
       return {
         mason = true,
         lsp = {
-          servers = {"pyright"},
+          disable_lsp = { "pylsp" },
+          servers = { "pyright", "jdtls" },
           pyright = {
-            on_attach = on_attach,
-            cmd = {"pyright-langserver", "--stdio"},
-            filetypes = {"python"},
-            flags = {allow_incremental_sync = true, debounce_text_changes = 500},
+            cmd = { "pyright-langserver", "--stdio" },
+            filetypes = { "python" },
+            flags = { allow_incremental_sync = true, debounce_text_changes = 500 },
             settings = {
               python = {
                 analysis = {
+                  autoImportCompletions = true,
                   autoSearchPaths = true,
                   useLibraryCodeForTypes = true,
-                  diagnosticMode = "workspace"
+                  disableOrganizeImports = false,
+                  diagnosticMode = "workspace",
+                  typeCheckingMode = "basic",
+                  stubPath = vim.fn.stdpath("data") .. "/lazy/python-type-stubs",
                 }
               }
             }
           },
+          pylsp = {
+            settings = {
+              pylsp = {
+                plugins = {
+                  autopep8 = { enabled = false },
+                  rope_autoimport = {
+                    enabled = true,
+                    memory = false,
+                  },
+                  rope_completion = {
+                    enabled = true,
+                    eager = true,
+                  },
+                  pylsp_mypy = {
+                    enabled = true,
+                    report_progress = true,
+                  },
+                  jedi_completion = { fuzzy = true },
+                  mccabe = { enabled = false },
+                  black = { enabled = true },
+                },
+
+              },
+            },
+
+          },
+          jdtls = {
+            filetypes = { "java" },
+          }
         },
       }
     end,
@@ -106,6 +150,12 @@ local plugins = {
           ["vim.lsp.util.convert_input_to_markdown_lines"] = true,
           ["vim.lsp.util.stylize_markdown"] = true,
           ["cmp.entry.get_documentation"] = true,
+        },
+        hover = {
+          enabled = false,
+        },
+        signature = {
+          enabled = false,
         },
       },
       -- you can enable a preset for easier configuration

@@ -26,13 +26,13 @@ M.portal = {
 M.grapple = {
   n = {
     ["<leader>ma"] = {
-      function ()
+      function()
         require("grapple").toggle()
       end,
       "Toggle grapple tag"
     },
     ["<leader>ml"] = {
-      function ()
+      function()
         -- require("grapple").popup_tags()
         require("portal.builtin").grapple.tunnel()
       end,
