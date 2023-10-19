@@ -27,20 +27,23 @@ local plugins = {
       return vim.tbl_deep_extend("force", defaults, overrides)
     end,
   },
+
   {
     "nvim-treesitter/nvim-treesitter",
     init = function()
+      require("core.utils").lazy_load "nvim-treesitter"
       require("core.utils").load_mappings "telescope"
     end,
     cmd = { "TSInstall", "TSBufEnable", "TSBufDisable", "TSModuleInfo" },
+    build = ":TSUpdate",
     opts = function()
       local defaults = require "plugins.configs.treesitter"
-      local overrides = {
-        ensure_installed = {
-          "lua", "python", "java", "rust", "yaml",
-        }
-      }
+      local overrides = require "custom.configs.treesitter"
       return vim.tbl_deep_extend("force", defaults, overrides)
+    end,
+    config = function(_, opts)
+      dofile(vim.g.base46_cache .. "syntax")
+      require("nvim-treesitter.configs").setup(opts)
     end,
   },
   {
@@ -51,7 +54,11 @@ local plugins = {
         ensure_installed = {
           "lua-language-server",
           "pyright",
-          "pylsp",
+          "rust-analyzer",
+          "codelldb",
+          "clangd",
+          "buf",
+          "buf-language-server",
         },
       }
       return vim.tbl_deep_extend("force", defaults, overrides)
@@ -74,19 +81,23 @@ local plugins = {
   },
   {
     "ray-x/navigator.lua",
-    ft = { "java", "python", "lua", "shell", "yaml" },
+    ft = { "java", "python", "lua", "shell", "yaml", "rust", "proto" },
     dependencies = {
       { 'ray-x/guihua.lua',               build = "cd lua/fzy && make" },
+      { 'neovim/nvim-lspconfig' },
       { 'nvim-treesitter/nvim-treesitter' },
       { 'microsoft/python-type-stubs', },
     },
     opts = function()
+      local util = require("lspconfig").util
+      local on_attach = require("navigator.lspclient.attach").on_attach
       return {
         mason = true,
         lsp = {
           disable_lsp = { "pylsp" },
-          servers = { "pyright", "jdtls" },
+          servers = { "pyright", "jdtls", "rust_analyzer", "clangd", "bufls" },
           pyright = {
+            on_attach = on_attach,
             cmd = { "pyright-langserver", "--stdio" },
             filetypes = { "python" },
             flags = { allow_incremental_sync = true, debounce_text_changes = 500 },
@@ -132,7 +143,36 @@ local plugins = {
           },
           jdtls = {
             filetypes = { "java" },
-          }
+          },
+          clangd = {
+            flags = { allow_incremental_sync = true, debounce_text_changes = 500 },
+            cmd = {
+              "clangd", "--background-index", "--suggest-missing-includes", "--clang-tidy",
+              "--header-insertion=iwyu"
+            },
+            filetypes = { "c", "cpp", "objc", "objcpp" },
+            on_attach = function(client)
+              client.resolved_capabilities.document_formatting = true
+              on_attach(client)
+            end
+          },
+          rust_analyzer = {
+            root_dir = function(fname)
+              return util.root_pattern("Cargo.toml", "rust-project.json", ".git")(fname)
+                  or util.path.dirname(fname)
+            end,
+            filetypes = { "rust" },
+            message_level = vim.lsp.protocol.MessageType.error,
+            on_attach = on_attach,
+            settings = {
+              ["rust-analyzer"] = {
+                assist = { importMergeBehavior = "last", importPrefix = "by_self" },
+                cargo = { loadOutDirsFromCheck = true },
+                procMacro = { enable = true }
+              }
+            },
+            flags = { allow_incremental_sync = true, debounce_text_changes = 500 }
+          },
         },
       }
     end,
@@ -205,7 +245,59 @@ local plugins = {
       --   If not available, we use `mini` as the fallback
       "rcarriga/nvim-notify",
     }
-  }
+  },
+  {
+    "simrat39/rust-tools.nvim",
+    ft = { "rust" },
+    opts = function()
+      local result = {
+        tools = {
+          runnables = {
+            use_telescope = true,
+          },
+          inlay_hints = {
+            auto = true,
+          },
+        },
+        server = {
+          on_attach = function(client, bufnr)
+            require('navigator.lspclient.mapping').setup({ client = client, bufnr = bufnr }) -- setup navigator keymaps here,
+            require("navigator.dochighlight").documentHighlight(bufnr)
+            require('navigator.codeAction').code_action_prompt(bufnr)
+
+            local rt = require("rust-tools")
+            -- Hover actions
+            vim.keymap.set("n", "<leader>lh", rt.hover_actions.hover_actions, { buffer = bufnr })
+            -- Code action groups
+            vim.keymap.set("n", "<leader>ca", rt.code_action_group.code_action_group, { buffer = bufnr })
+          end,
+        },
+      }
+      return result
+    end,
+    config = function(_, opts)
+      require("rust-tools").setup(opts)
+    end,
+  },
+  {
+    "p00f/clangd_extensions.nvim",
+    ft = { "rust" },
+    opts = function()
+      local result = {
+        server = {
+          on_attach = function(client, bufnr)
+            require('navigator.lspclient.mapping').setup({ client = client, bufnr = bufnr }) -- setup navigator keymaps here,
+            require("navigator.dochighlight").documentHighlight(bufnr)
+            require('navigator.codeAction').code_action_prompt(bufnr)
+          end,
+        },
+      }
+      return result
+    end,
+    config = function(_, opts)
+      require("clangd_extensions").setup(opts)
+    end,
+  },
 }
 
 return plugins

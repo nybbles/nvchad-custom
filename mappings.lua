@@ -1,5 +1,9 @@
 local M = {}
 
+local change_scale_factor = function(delta)
+  vim.g.neovide_scale_factor = vim.g.neovide_scale_factor * delta
+end
+
 M.general = {
   n = {
     ["<leader>ts"] = {
@@ -7,6 +11,16 @@ M.general = {
         require("base46").toggle_theme()
       end,
       "toggle theme",
+    },
+    ["<C-=>"] = {
+      function()
+        change_scale_factor(1.25)
+      end
+    },
+    ["<C-->"] = {
+      function()
+        change_scale_factor(1 / 1.25)
+      end
     },
   },
 }
