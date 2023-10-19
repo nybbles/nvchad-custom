@@ -1,10 +1,5 @@
 local plugins = {
   {
-    "neovim/nvim-lspconfig",
-    -- init = function()
-    -- end,
-  },
-  {
     "nvim-tree/nvim-tree.lua",
     opts = function()
       local defaults = require "plugins.configs.nvimtree"
@@ -30,6 +25,25 @@ local plugins = {
         }
       }
       return vim.tbl_deep_extend("force", defaults, overrides)
+    end,
+  },
+
+  {
+    "nvim-treesitter/nvim-treesitter",
+    init = function()
+      require("core.utils").lazy_load "nvim-treesitter"
+      require("core.utils").load_mappings "telescope"
+    end,
+    cmd = { "TSInstall", "TSBufEnable", "TSBufDisable", "TSModuleInfo" },
+    build = ":TSUpdate",
+    opts = function()
+      local defaults = require "plugins.configs.treesitter"
+      local overrides = require "custom.configs.treesitter"
+      return vim.tbl_deep_extend("force", defaults, overrides)
+    end,
+    config = function(_, opts)
+      dofile(vim.g.base46_cache .. "syntax")
+      require("nvim-treesitter.configs").setup(opts)
     end,
   },
   {
@@ -72,6 +86,7 @@ local plugins = {
       { 'ray-x/guihua.lua',               build = "cd lua/fzy && make" },
       { 'neovim/nvim-lspconfig' },
       { 'nvim-treesitter/nvim-treesitter' },
+      { 'microsoft/python-type-stubs', },
     },
     opts = function()
       local util = require("lspconfig").util
@@ -79,7 +94,8 @@ local plugins = {
       return {
         mason = true,
         lsp = {
-          servers = { "pyright", "rust_analyzer", "clangd", "bufls" },
+          disable_lsp = { "pylsp" },
+          servers = { "pyright", "jdtls", "rust_analyzer", "clangd", "bufls" },
           pyright = {
             on_attach = on_attach,
             cmd = { "pyright-langserver", "--stdio" },
@@ -88,12 +104,45 @@ local plugins = {
             settings = {
               python = {
                 analysis = {
+                  autoImportCompletions = true,
                   autoSearchPaths = true,
                   useLibraryCodeForTypes = true,
-                  diagnosticMode = "workspace"
+                  disableOrganizeImports = false,
+                  diagnosticMode = "workspace",
+                  typeCheckingMode = "basic",
+                  stubPath = vim.fn.stdpath("data") .. "/lazy/python-type-stubs",
                 }
               }
             }
+          },
+          pylsp = {
+            settings = {
+              pylsp = {
+                plugins = {
+                  autopep8 = { enabled = false },
+                  rope_autoimport = {
+                    enabled = true,
+                    memory = false,
+                  },
+                  rope_completion = {
+                    enabled = true,
+                    eager = true,
+                  },
+                  pylsp_mypy = {
+                    enabled = true,
+                    report_progress = true,
+                  },
+                  jedi_completion = { fuzzy = true },
+                  mccabe = { enabled = false },
+                  black = { enabled = true },
+                },
+
+              },
+            },
+
+          },
+          jdtls = {
+            filetypes = { "java" },
           },
           clangd = {
             flags = { allow_incremental_sync = true, debounce_text_changes = 500 },
@@ -124,7 +173,6 @@ local plugins = {
             },
             flags = { allow_incremental_sync = true, debounce_text_changes = 500 }
           },
-
         },
       }
     end,
@@ -142,6 +190,12 @@ local plugins = {
           ["vim.lsp.util.convert_input_to_markdown_lines"] = true,
           ["vim.lsp.util.stylize_markdown"] = true,
           ["cmp.entry.get_documentation"] = true,
+        },
+        hover = {
+          enabled = false,
+        },
+        signature = {
+          enabled = false,
         },
       },
       -- you can enable a preset for easier configuration
@@ -244,23 +298,6 @@ local plugins = {
       require("clangd_extensions").setup(opts)
     end,
   },
-  {
-    "nvim-treesitter/nvim-treesitter",
-    init = function()
-      require("core.utils").lazy_load "nvim-treesitter"
-    end,
-    cmd = { "TSInstall", "TSBufEnable", "TSBufDisable", "TSModuleInfo" },
-    build = ":TSUpdate",
-    opts = function()
-      local defaults = require "plugins.configs.treesitter"
-      local overrides = require "custom.configs.treesitter"
-      return vim.tbl_deep_extend("force", defaults, overrides)
-    end,
-    config = function(_, opts)
-      dofile(vim.g.base46_cache .. "syntax")
-      require("nvim-treesitter.configs").setup(opts)
-    end,
-  }
 }
 
 return plugins
